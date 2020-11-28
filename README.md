@@ -1,3 +1,29 @@
+# Online Chat 
+
+## Overview
+
+Using react, firebase, and a raspberry pi, this program runs an online chat that anyone can log into with a google account.  The website url is - 
+####adventuresonlinecs246.ddns.net
+
+
+
+## Development Environment
+* Visual Studio Code
+* react
+* firebase
+
+## Execution
+To use this program follow the rust instructions below, then download the app and index files specific to this program.  You can also simply view and use the website at the above link which should appear as so -
+
+![](image1.jpg)
+
+## Useful Websites
+* https://fireship.io/lessons/react-firebase-chat-app-tutorial/
+
+
+
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
