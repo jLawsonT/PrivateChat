@@ -26,11 +26,14 @@ function App() {
 export default App;  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useAsync } from 'react-async';
 import './App.css';
 
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 import 'firebase/auth';
+//import {ReactSVG} from 'react-svg';
+//import Logo from './treelogo2.svg'
 
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollectionData } from 'react-firebase-hooks/firestore';
@@ -49,9 +52,14 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const firestore = firebase.firestore();
 
+const loadChatrooms = async () => {
+
+}
+
 function App() {
 
   const [user] = useAuthState(auth);
+  const [chatroomList, setChatroomList] = useState();
 
   return (
     <div className="App">
@@ -59,11 +67,14 @@ function App() {
         <h1>Adventures Online</h1>
         <SignOut />
       </header>
-
-      <section>
-        {user ? <ChatRoom /> : <SignIn />}
-      </section>
-
+      <div className="mainContent">
+        <div className="sidebar">
+          {user ? <Sidebar chatroomList={chatroomList} setChatroomList={setChatroomList} /> : null}
+        </div>
+        <div className="chatroom">
+          {user ? <ChatRoom /> : <SignIn />}
+        </div>
+      </div>
     </div>
   );
 }
@@ -76,7 +87,7 @@ function SignIn() {
   }
 
   return (
-      <button onClick={signInWithGoogle}>Sign in with Google</button>
+    <button onClick={signInWithGoogle}>Sign in with Google</button>
   )
 
 }
@@ -85,6 +96,101 @@ function SignOut() {
     <button onClick={() => auth.signOut()}>Sign Out</button>
   )
 }
+
+function Sidebar(props) {
+  const [inputEmail, setInputEmail] = useState('');
+  const handleEmailChange = (event) => {
+    setInputEmail(event.target.value);
+  }
+
+  useEffect(() => {
+    const chatroomRef = firestore.collection('chatrooms');
+    let tempList = [];
+    chatroomRef.where('user2', '==', firebase.auth().currentUser.email)
+      .get()
+      .then((query) => {
+        if (!query.empty) {
+          query.forEach(doc => {
+            console.log(doc.data())
+            if (doc.data().user1 === firebase.auth().currentUser.email) {
+              tempList.push({ otherUser: doc.data().user2, open: false })
+            } else {
+              tempList.push({ otherUser: doc.data().user1, open: false })
+            }
+          })
+        }
+        chatroomRef.where('user1', '==', firebase.auth().currentUser.email)
+          .get()
+          .then((query) => {
+            if (!query.empty) {
+              query.forEach(doc => {
+                console.log(doc.data())
+                if (doc.data().user1 === firebase.auth().currentUser.email) {
+                  tempList.push({ otherUser: doc.data().user2, open: false })
+                } else {
+                  tempList.push({ otherUser: doc.data().user1, open: false })
+                }
+              })
+            }
+
+            console.log(tempList)
+            props.setChatroomList(tempList);
+          })
+      });
+  }, []);
+
+  const handleEmailKey = async (event) => {
+    if (event.key === 'Enter') {
+      let chatroomFound = false;
+      const chatroomRef = firestore.collection('chatrooms');
+      const snapshot = await chatroomRef.where('user2', '==', firebase.auth().currentUser.email).get().then((query) => {
+        if (!query.empty) {
+          console.log(query)
+          query.forEach(doc => {
+            if (doc.data().user1 === inputEmail) {
+              chatroomFound = true;
+            }
+          })
+        }
+      });
+      const snapshot2 = await chatroomRef.where('user1', '==', firebase.auth().currentUser.email).get().then((query) => {
+        if (!query.empty) {
+          console.log(query)
+          query.forEach(doc => {
+            if (doc.data().user2 === inputEmail) {
+              chatroomFound = true;
+            }
+          })
+        }
+      });
+      if (!chatroomFound) {
+        await firestore.collection('chatrooms').add({
+          user1: inputEmail,
+          user2: firebase.auth().currentUser.email
+        })
+      }
+      setInputEmail('');
+      event.target.blur();
+    }
+  }
+
+  return (
+    <div className="sidebarContent">
+      <h1>Chat Rooms</h1>
+      <input id="emailInput" type="text" value={inputEmail} onChange={handleEmailChange} onKeyDown={handleEmailKey} />
+      {props.chatroomList && props.chatroomList.map(item => {
+        return (
+        <h1>
+          {
+            item.otherUser
+          }
+
+        </h1>)
+      })}
+    </div>
+  )
+}
+
 function ChatRoom() {
   const dummy = useRef();
   const messagesRef = firestore.collection('messages');
@@ -112,7 +218,7 @@ function ChatRoom() {
   }
 
   return (<>
-    <main>
+    <main id="mainContent">
 
       {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
 
@@ -122,9 +228,9 @@ function ChatRoom() {
 
     <form onSubmit={sendMessage}>
 
-      <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="say something nice" />
+      <input id="messageInput" value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="New Message" />
 
-      <button type="submit" disabled={!formValue}>🕊️</button>
+      <button type="submit" disabled={!formValue}>⬆️</button>
 
     </form>
   </>)
