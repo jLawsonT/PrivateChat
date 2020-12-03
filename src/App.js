@@ -99,6 +99,7 @@ function SignOut() {
 
 function Sidebar(props) {
   const [inputEmail, setInputEmail] = useState('');
+  const [updateCounter, setUpdateCounter] = useState(0);
   const handleEmailChange = (event) => {
     setInputEmail(event.target.value);
   }
@@ -137,7 +138,7 @@ function Sidebar(props) {
             props.setChatroomList(tempList);
           })
       });
-  }, []);
+  }, [updateCounter]);
 
   const handleEmailKey = async (event) => {
     if (event.key === 'Enter') {
@@ -167,6 +168,8 @@ function Sidebar(props) {
         await firestore.collection('chatrooms').add({
           user1: inputEmail,
           user2: firebase.auth().currentUser.email
+        }).then(() => {
+          setUpdateCounter(updateCounter + 1);
         })
       }
       setInputEmail('');
@@ -174,22 +177,55 @@ function Sidebar(props) {
     }
   }
 
+  const buttonSelect = (event, otherUser) => {
+     let temp = JSON.parse(JSON.stringify(props.chatroomList))
+     temp.forEach(item => {
+       if (item.otherUser === otherUser) {
+         item.open = true;
+       } else {
+         item.open = false;
+       }
+      })
+      props.setChatroomList(temp);
+  }
+
   return (
     <div className="sidebarContent">
       <h1>Chat Rooms</h1>
       <input id="emailInput" type="text" value={inputEmail} onChange={handleEmailChange} onKeyDown={handleEmailKey} />
       {props.chatroomList && props.chatroomList.map(item => {
+        const selected = item.open ? 'selected' : ''
         return (
-        <h1>
-          {
-            item.otherUser
-          }
-
-        </h1>)
+          <div>
+            <button type="button" className={`chatroombutton ${selected}`} onClick={(event) => buttonSelect(event, item.otherUser)}> {item.otherUser} </button>
+          </div>
+        )
       })}
     </div>
   )
 }
+
+
+
+
+/*
+
+
+function emails(props) {
+  const { text, uid, photoURL } = props.message;
+
+  const emailClass = uid === auth.currentUser.uid 'email';
+
+  return (<>
+    <div className={`email ${emailClass}`}>
+      <img src={photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} />
+      <p>{text}</p>
+    </div>
+  </>)
+}
+
+
+*/
 
 function ChatRoom() {
   const dummy = useRef();

@@ -59,6 +59,28 @@ main::-webkit-scrollbar-thumb {
   border-right: none;
 }
 
+g {
+  max-width: 500px;
+  margin-bottom: 12px;
+  line-height: 24px;
+  padding: 10px 20px;
+  border-radius: 25px;
+  position: relative;
+  color: white;
+  text-align: center;
+}
+.chatroombutton {
+  color: white;
+  background: #1f6ca3;
+  align-self: flex-end;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.selected {
+  background: #cff8fd;
+}
+
 .chatroom { 
   width: 100%;
 }
@@ -96,6 +118,8 @@ form button {
   border: 2px solid black;
   height: 1.5rem;
 }
+
+
 
 button {
   background-color: #4e4e4e; /* Green */
@@ -155,7 +179,7 @@ p {
 
 .sent p {
   color: white;
-  background: #0b93f6;
+  background: #1f6ca3;
   align-self: flex-end;
 }
 .received p {
