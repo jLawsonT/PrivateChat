@@ -1,39 +1,9 @@
-/*
-import {useState} from 'react';
-import logo from './logo.svg';
-import './App.css';
-import {auth} from './utilities/auth'
-import Header from './components/Header';
-import Body from './components/Body';
-
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginInfo, setLoginInfo] = useState({un: "", ps: ""});
-  const login = () => {
-    auth.signInWithEmailAndPassword(loginInfo.un, loginInfo.ps).then((cred) => {
-      setIsLoggedIn(true);
-    })
-  }
-  return (
-    <div className="App">
-      <Header title={isLoggedIn}/>
-      <Body loginButton={login} loginInfo={loginInfo} setLoginInfo={setLoginInfo}/>
-    </div>
-
-  );
-}
-
-export default App;  */
-
 import React, { useEffect, useRef, useState } from 'react';
-import { useAsync } from 'react-async';
 import './App.css';
 
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 import 'firebase/auth';
-//import {ReactSVG} from 'react-svg';
-//import Logo from './treelogo2.svg'
 
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollectionData } from 'react-firebase-hooks/firestore';
@@ -52,14 +22,18 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const firestore = firebase.firestore();
 
-const loadChatrooms = async () => {
-
-}
-
 function App() {
 
   const [user] = useAuthState(auth);
-  const [chatroomList, setChatroomList] = useState();
+  const [chatroomList, setChatroomList] = useState([]);
+  const chatroomRef = firestore.collection('chatrooms');
+  const query = chatroomRef;
+
+  const [chatrooms] = useCollectionData(query, { idField: 'id' });
+
+  const messagesRef = firestore.collection('messages');
+  const query2 = messagesRef.orderBy('createdAt');
+  const [messages] = useCollectionData(query2, { idField: 'id' });
 
   return (
     <div className="App">
@@ -69,10 +43,10 @@ function App() {
       </header>
       <div className="mainContent">
         <div className="sidebar">
-          {user ? <Sidebar chatroomList={chatroomList} setChatroomList={setChatroomList} /> : null}
+          {user ? <Sidebar chatrooms={chatrooms} chatroomList={chatroomList} setChatroomList={setChatroomList} /> : null}
         </div>
         <div className="chatroom">
-          {user ? <ChatRoom /> : <SignIn />}
+          {user ? <ChatRoom messages={messages} chatroomList={chatroomList} setChatroomList={setChatroomList} /> : <SignIn />}
         </div>
       </div>
     </div>
@@ -87,7 +61,7 @@ function SignIn() {
   }
 
   return (
-    <button onClick={signInWithGoogle}>Sign in with Google</button>
+    <button id="signInBtn" onClick={signInWithGoogle}>Sign in with Google</button>
   )
 
 }
@@ -99,46 +73,29 @@ function SignOut() {
 
 function Sidebar(props) {
   const [inputEmail, setInputEmail] = useState('');
-  const [updateCounter, setUpdateCounter] = useState(0);
   const handleEmailChange = (event) => {
     setInputEmail(event.target.value);
   }
 
   useEffect(() => {
-    const chatroomRef = firestore.collection('chatrooms');
-    let tempList = [];
-    chatroomRef.where('user2', '==', firebase.auth().currentUser.email)
-      .get()
-      .then((query) => {
-        if (!query.empty) {
-          query.forEach(doc => {
-            console.log(doc.data())
-            if (doc.data().user1 === firebase.auth().currentUser.email) {
-              tempList.push({ otherUser: doc.data().user2, open: false })
-            } else {
-              tempList.push({ otherUser: doc.data().user1, open: false })
-            }
-          })
+    if (props.chatrooms) {
+      let temp = JSON.parse(JSON.stringify(props.chatroomList));
+      props.chatrooms.forEach(room => {
+        if (room.user1 === firebase.auth().currentUser.email) {
+          if (temp.filter(item => item.otherUser === room.user2).length === 0) {
+            temp.push({ otherUser: room.user2, open: false, messages: [] })
+          }
+        } else if (room.user2 === firebase.auth().currentUser.email) {
+          if (temp.filter(item => item.otherUser === room.user1).length === 0) {
+            temp.push({ otherUser: room.user1, open: false, messages: [] })
+          }
         }
-        chatroomRef.where('user1', '==', firebase.auth().currentUser.email)
-          .get()
-          .then((query) => {
-            if (!query.empty) {
-              query.forEach(doc => {
-                console.log(doc.data())
-                if (doc.data().user1 === firebase.auth().currentUser.email) {
-                  tempList.push({ otherUser: doc.data().user2, open: false })
-                } else {
-                  tempList.push({ otherUser: doc.data().user1, open: false })
-                }
-              })
-            }
+      })
+      props.setChatroomList(temp);
+    }
+  }, [props.chatrooms]);
 
-            console.log(tempList)
-            props.setChatroomList(tempList);
-          })
-      });
-  }, [updateCounter]);
+
 
   const handleEmailKey = async (event) => {
     if (event.key === 'Enter') {
@@ -146,7 +103,6 @@ function Sidebar(props) {
       const chatroomRef = firestore.collection('chatrooms');
       const snapshot = await chatroomRef.where('user2', '==', firebase.auth().currentUser.email).get().then((query) => {
         if (!query.empty) {
-          console.log(query)
           query.forEach(doc => {
             if (doc.data().user1 === inputEmail) {
               chatroomFound = true;
@@ -156,7 +112,6 @@ function Sidebar(props) {
       });
       const snapshot2 = await chatroomRef.where('user1', '==', firebase.auth().currentUser.email).get().then((query) => {
         if (!query.empty) {
-          console.log(query)
           query.forEach(doc => {
             if (doc.data().user2 === inputEmail) {
               chatroomFound = true;
@@ -168,8 +123,6 @@ function Sidebar(props) {
         await firestore.collection('chatrooms').add({
           user1: inputEmail,
           user2: firebase.auth().currentUser.email
-        }).then(() => {
-          setUpdateCounter(updateCounter + 1);
         })
       }
       setInputEmail('');
@@ -178,15 +131,15 @@ function Sidebar(props) {
   }
 
   const buttonSelect = (event, otherUser) => {
-     let temp = JSON.parse(JSON.stringify(props.chatroomList))
-     temp.forEach(item => {
-       if (item.otherUser === otherUser) {
-         item.open = true;
-       } else {
-         item.open = false;
-       }
-      })
-      props.setChatroomList(temp);
+    let temp = JSON.parse(JSON.stringify(props.chatroomList))
+    temp.forEach(item => {
+      if (item.otherUser === otherUser) {
+        item.open = true;
+      } else {
+        item.open = false;
+      }
+    })
+    props.setChatroomList(temp);
   }
 
   return (
@@ -205,48 +158,68 @@ function Sidebar(props) {
   )
 }
 
+function ChatRoom(props) {
 
-
-
-/*
-
-
-function emails(props) {
-  const { text, uid, photoURL } = props.message;
-
-  const emailClass = uid === auth.currentUser.uid 'email';
-
-  return (<>
-    <div className={`email ${emailClass}`}>
-      <img src={photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} />
-      <p>{text}</p>
-    </div>
-  </>)
-}
-
-
-*/
-
-function ChatRoom() {
-  const dummy = useRef();
   const messagesRef = firestore.collection('messages');
-  const query = messagesRef.orderBy('createdAt').limit(25);
+  const dummy = useRef();
 
-  const [messages] = useCollectionData(query, { idField: 'id' });
+  useEffect(() => {
+    if (props.messages) {
+      let temp = JSON.parse(JSON.stringify(props.chatroomList));
+
+      props.messages.forEach(message => {
+        if (message.to === firebase.auth().currentUser.email) {
+          let index = temp.findIndex(element => element.otherUser === message.from);
+          let isIn = false;
+          temp[index].messages.forEach(item => {
+            if (item.id === message.id) {
+              isIn = true;
+            }
+          })
+          if (!isIn) {
+            temp[index].messages.push(message);
+          }
+        } else if (message.from === firebase.auth().currentUser.email) {
+          let index = temp.findIndex(element => element.otherUser === message.to);
+          let isIn = false;
+          temp[index].messages.forEach(item => {
+            if (item.id === message.id) {
+              isIn = true;
+            }
+          })
+          if (!isIn) {
+            temp[index].messages.push(message);
+          }
+        }
+      })
+      props.setChatroomList(temp);
+    }
+  }, [props.messages]);
+
 
   const [formValue, setFormValue] = useState('');
 
+  const isOpen = props.chatroomList.filter(item => item.open).length > 0;
+  let otherUser;
+  let openIndex;
+
+  if (isOpen) {
+    otherUser = props.chatroomList.filter(item => item.open)[0].otherUser;
+    openIndex = props.chatroomList.findIndex(element => element.otherUser === otherUser)
+  }
 
   const sendMessage = async (e) => {
     e.preventDefault();
+    if (!isOpen)
+      return;
 
     const { uid, photoURL } = auth.currentUser;
 
     await messagesRef.add({
       text: formValue,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      uid,
-      photoURL
+      to: otherUser,
+      from: firebase.auth().currentUser.email
     })
 
     setFormValue('');
@@ -256,7 +229,7 @@ function ChatRoom() {
   return (<>
     <main id="mainContent">
 
-      {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+      {openIndex > -1 && props.chatroomList[openIndex].messages && props.chatroomList[openIndex].messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
 
       <span ref={dummy}></span>
 
@@ -266,22 +239,19 @@ function ChatRoom() {
 
       <input id="messageInput" value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="New Message" />
 
-      <button type="submit" disabled={!formValue}>⬆️</button>
+      <button type="submit" disabled={!formValue && isOpen}>⬆️</button>
 
     </form>
   </>)
 }
 
-
-
 function ChatMessage(props) {
-  const { text, uid, photoURL } = props.message;
+  const { text, from } = props.message;
 
-  const messageClass = uid === auth.currentUser.uid ? 'sent' : 'received';
+  const messageClass = from === firebase.auth().currentUser.email ? 'sent' : 'received';
 
   return (<>
     <div className={`message ${messageClass}`}>
-      <img src={photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} />
       <p>{text}</p>
     </div>
   </>)

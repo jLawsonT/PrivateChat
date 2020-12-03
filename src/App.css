@@ -85,6 +85,10 @@ g {
   width: 100%;
 }
 
+#signInBtn {
+  margin-top: 45vh;
+}
+
 form {
   height: 10vh;
   position: fixed;
